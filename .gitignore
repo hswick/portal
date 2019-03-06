@@ -1,3 +1,5 @@
 db.toml
 apps.toml
 server
+static/*.min.js
+elm-stuff

@@ -19,39 +19,63 @@ main =
         , view = view >> toUnstyled
         }
 
+        
+type alias ActiveUser =
+    { id : Int
+    , accessToken : String
+    }
 
-type alias Login =
-     { usernameText : String
-     , passwordText : String
-     }
-
-
+    
 type alias Model =
-    { usernameText : String
-    , passwordText : String
+    { loginUsernameText : String
+    , loginPasswordText : String
+    , registerUsernameText : String
+    , registerPasswordText : String
     , errorMessage : String
     }
 
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( Model "" "" "", Cmd.none )
+    ( { loginUsernameText = ""
+      , loginPasswordText = ""
+      , registerUsernameText = ""
+      , registerPasswordText = ""
+      , errorMessage = ""
+      }
+    , Cmd.none )
 
-        
-postLogin : Login -> Cmd Msg
-postLogin login =
+                     
+postRegister : String -> String -> Cmd Msg
+postRegister username password =
           Http.post
-                { url = "/login"
-                , body = Http.jsonBody (loginEncoder login)
-                , expect = Http.expectString PostLogin
+                { url = "/register/credentials"
+                , body = Http.jsonBody (credentialsEncoder username password)
+                , expect = Http.expectWhatever PostRegister
                 }
 
 
-loginEncoder : Login -> Encode.Value
-loginEncoder login =
+postLogin : String -> String -> Cmd Msg
+postLogin username password =
+          Http.post
+                { url = "/login/credentials"
+                , body = Http.jsonBody (credentialsEncoder username password)
+                , expect = Http.expectJson PostLogin activeUserDecoder
+                }
+
+              
+activeUserDecoder : Decode.Decoder ActiveUser
+activeUserDecoder =
+    Decode.map2 ActiveUser
+        (Decode.field "id" Decode.int)
+        (Decode.field "accessToken" Decode.string)
+              
+
+credentialsEncoder : String -> String -> Encode.Value
+credentialsEncoder username password =
              Encode.object
-                 [ ("username", Encode.string login.usernameText)
-                 , ("password", Encode.string login.passwordText)
+                 [ ("username", Encode.string username)
+                 , ("password", Encode.string password)
                  ]
 
 
@@ -59,28 +83,55 @@ loginEncoder login =
 
 
 type Msg
-     = UsernameTextInput String
-     | PasswordTextInput String
-     | Submit
-     | PostLogin (Result Http.Error String)
+     = LoginUsernameInput String
+     | LoginPasswordInput String
+     | RegisterUsernameInput String
+     | RegisterPasswordInput String
+     | SubmitLogin
+     | PostLogin (Result Http.Error ActiveUser)
+     | SubmitRegister
+     | PostRegister (Result Http.Error ())
 
+
+activeUserToUrl : ActiveUser -> String
+activeUserToUrl au =
+        ("/welcome?user_id=" ++ (String.fromInt au.id) ++ "&access_token=" ++ au.accessToken)
+            
         
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
        case msg of
-            UsernameTextInput username ->
-                              ( { model | usernameText = username }, Cmd.none )
+            LoginUsernameInput username ->
+                              ( { model | loginUsernameText = username }, Cmd.none )
 
-            PasswordTextInput password ->
-                              ( { model | passwordText = password }, Cmd.none )
+            LoginPasswordInput password ->
+                              ( { model | loginPasswordText = password }, Cmd.none )
 
-            Submit ->
-             ( model, postLogin { usernameText = model.usernameText, passwordText = model.passwordText} )
+            SubmitLogin ->
+                        ( model, postLogin model.loginUsernameText model.loginPasswordText )
 
             PostLogin result ->
                       case result of
-                           Ok url ->                              
-                              ( model, Nav.load url )
+                           Ok activeUser ->
+                              ( model, Nav.load (activeUserToUrl activeUser) )
+
+                           Err _ ->
+                               ( { model | errorMessage = "An error has occurred" }, Cmd.none )
+
+
+            RegisterUsernameInput username ->
+                                  ( { model | registerUsernameText = username }, Cmd.none )
+
+            RegisterPasswordInput password ->
+                                  ( { model | registerPasswordText = password }, Cmd.none )
+
+            SubmitRegister ->
+                        ( model, postRegister model.registerUsernameText model.registerPasswordText )
+
+            PostRegister result ->
+                      case result of
+                           Ok url ->
+                              ( model, Cmd.none )
 
                            Err _ ->
                                ( { model | errorMessage = "An error has occurred" }, Cmd.none )
@@ -92,8 +143,25 @@ update msg model =
 view : Model -> Html Msg
 view model =
      div []
-         [ input [ onInput UsernameTextInput, placeholder "Username", value model.usernameText ] []
-         , input [ onInput PasswordTextInput, placeholder "Password", value model.passwordText ] []
-         , button [ onClick Submit ] [ text "Submit" ]
+         [ loginView model
+         , registerView model
          , text model.errorMessage
          ]
+
+
+loginView : Model -> Html Msg
+loginView model =
+     div []
+         [ input [ onInput LoginUsernameInput, placeholder "Username", value model.loginUsernameText ] []
+         , input [ onInput LoginPasswordInput, placeholder "Password", value model.loginPasswordText ] []
+         , button [ onClick SubmitLogin ] [ text "Login" ]
+         ]
+
+
+registerView : Model -> Html Msg
+registerView model =
+          div []
+              [ input [ onInput RegisterUsernameInput, placeholder "Username", value model.registerUsernameText ] []
+              , input [ onInput RegisterPasswordInput, placeholder "Password", value model.registerPasswordText ] []
+              , button [ onClick SubmitRegister ] [ text "Register" ]
+              ]

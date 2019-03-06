@@ -104,9 +104,9 @@ type User struct{
 }
 
 type ActiveUser struct{
-	Id int64
-	AccessToken string
-	Name string
+	Id int64 `json:"id"`
+	AccessToken string `json:"accessToken"`
+	Name string `json:"name"`
 	LoginAt time.Time
 }
 
