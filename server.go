@@ -313,15 +313,347 @@ func verifyTokenHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(&data)
 }
 
+func updatePasswordHandler() func(http.ResponseWriter, *http.Request) {
+
+	stmt, err := db.Prepare("SELECT password FROM credentials WHERE id = $1"); if err != nil {
+		log.Fatal(err.Error())
+	}
+
+	stmt2 := prepareQuery("sql/update_user_password.sql")	
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" {
+			http.Error(w, "This route only accepts POST requests", 400)
+			return
+		}
+		
+		if r.Body == nil  {
+			http.Error(w, "Please send a request body", 400)
+			return
+		}
+
+		var data map[string]string
+		err := json.NewDecoder(r.Body).Decode(&data); if err != nil {
+			http.Error(w, err.Error(), 400)
+			return
+		}
+
+		//verify access token
+		if !verifyAccessToken(data["access_token"]) {
+			http.Error(w, "Access token is unauthorized", 401)
+			return
+		}
+
+
+		id, err := strconv.ParseInt(data["id"], 10, 64); if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		
+		if !verifyUserAccess(data["access_token"], id) {
+			http.Error(w, "Access token is not authorized for user", 401)
+			return
+		}
+		
+		//get password
+		var password string
+		err = stmt2.QueryRow(id).Scan(&password); if err != nil {
+			http.Error(w, err.Error(), 401)
+			return
+		}
+
+		if password != data["old_password"] {
+			http.Error(w, "Old password is incorrect", 401)
+			return
+		}
+
+		_, err = stmt.Exec(id, data["new_password"]); if err != nil {
+			http.Error(w, err.Error(), 401)
+			return
+		}
+	}
+}
+
+func updateUsernameHandler() func(http.ResponseWriter, *http.Request) {
+	stmt := prepareQuery("sql/update_user_name.sql")
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" {
+			http.Error(w, "This route only accepts POST requests", 400)
+			return
+		}
+		
+		if r.Body == nil  {
+			http.Error(w, "Please send a request body", 400)
+			return
+		}
+
+		var data map[string]string
+		err := json.NewDecoder(r.Body).Decode(&data); if err != nil {
+			http.Error(w, err.Error(), 400)
+			return
+		}
+
+		//verify access token
+		if !verifyAccessToken(data["access_token"]) {
+			http.Error(w, "Access token is unauthorized", 401)
+			return
+		}
+
+		id, err := strconv.ParseInt(data["id"], 10, 64); if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		
+		if !verifyUserAccess(data["access_token"], id) {
+			http.Error(w, "Access token is not authorized for user", 401)
+			return
+		}
+
+		_, err = stmt.Exec(id, data["username"]); if err != nil {
+			http.Error(w, err.Error(), 401)
+			return
+		}
+	}
+}
+
+func adminNewPasswordHandler() func(http.ResponseWriter, *http.Request) {
+	stmt := prepareQuery("sql/check_admin.sql")
+	stmt2 := prepareQuery("sql/update_other_user_password.sql")
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" {
+			http.Error(w, "This route only accepts POST requests", 400)
+			return
+		}
+		
+		if r.Body == nil  {
+			http.Error(w, "Please send a request body", 400)
+			return
+		}
+
+		var data map[string]string
+		err := json.NewDecoder(r.Body).Decode(&data); if err != nil {
+			http.Error(w, err.Error(), 400)
+			return
+		}
+
+		//verify access token
+		if !verifyAccessToken(data["access_token"]) {
+			http.Error(w, "Access token is unauthorized", 401)
+			return
+		}
+
+		id, err := strconv.ParseInt(data["id"], 10, 64); if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+
+		var admin bool
+		err = stmt.QueryRow(id).Scan(&admin); if err != nil {
+			http.Error(w, err.Error(), 401)
+			return
+		}
+
+		if !admin {
+			http.Error(w, "User is not an admin. Unauthorized action.", 401)
+			return
+		}
+
+		newPassword := "supersecure"
+
+		_, err = stmt2.Exec(data["username"], newPassword); if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+
+		var data2 map[string]string
+		data["password"] = newPassword
+		json.NewEncoder(w).Encode(&data2)
+	}
+}
+
+func adminMakeAdminHandler() func(http.ResponseWriter, *http.Request) {
+	stmt := prepareQuery("sql/check_admin.sql")	
+	stmt2 := prepareQuery("sql/update_admin.sql")
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" {
+			http.Error(w, "This route only accepts POST requests", 400)
+			return
+		}
+		
+		if r.Body == nil  {
+			http.Error(w, "Please send a request body", 400)
+			return
+		}
+
+		var data map[string]string
+		err := json.NewDecoder(r.Body).Decode(&data); if err != nil {
+			http.Error(w, err.Error(), 400)
+			return
+		}
+
+		//verify access token
+		if !verifyAccessToken(data["access_token"]) {
+			http.Error(w, "Access token is unauthorized", 401)
+			return
+		}
+
+		id, err := strconv.ParseInt(data["id"], 10, 64); if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+
+		var admin bool
+		err = stmt.QueryRow(id).Scan(&admin); if err != nil {
+			http.Error(w, err.Error(), 401)
+			return
+		}
+
+		if !admin {
+			http.Error(w, "User is not an admin. Unauthorized action.", 401)
+			return
+		}
+
+		_, err = stmt2.Exec(data["username"], true); if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+	}
+}
+
+func adminRevokeAdminHandler() func(http.ResponseWriter, *http.Request) {
+	stmt := prepareQuery("sql/check_admin.sql")
+	stmt2 := prepareQuery("sql/get_user_name.sql")
+	stmt3 := prepareQuery("sql/update_admin.sql")
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" {
+			http.Error(w, "This route only accepts POST requests", 400)
+			return
+		}
+		
+		if r.Body == nil  {
+			http.Error(w, "Please send a request body", 400)
+			return
+		}
+
+		var data map[string]string
+		err := json.NewDecoder(r.Body).Decode(&data); if err != nil {
+			http.Error(w, err.Error(), 400)
+			return
+		}
+
+		//verify access token
+		if !verifyAccessToken(data["access_token"]) {
+			http.Error(w, "Access token is unauthorized", 401)
+			return
+		}
+
+		id, err := strconv.ParseInt(data["id"], 10, 64); if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+
+		var admin bool
+		err = stmt.QueryRow(id).Scan(&admin); if err != nil {
+			http.Error(w, err.Error(), 401)
+			return
+		}
+
+		if !admin {
+			http.Error(w, "User is not an admin. Unauthorized action.", 401)
+			return
+		}
+
+		var name string
+		err = stmt2.QueryRow(id).Scan(&name); if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+
+		if data["username"] == name {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+
+		_, err = stmt3.Exec(data["username"], false); if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+	}
+}
+
+func adminDeleteUserHandler() func(http.ResponseWriter, *http.Request) {
+	stmt := prepareQuery("sql/check_admin.sql")
+	stmt2 := prepareQuery("sql/get_user_name.sql")
+	stmt3 := prepareQuery("sql/delete_user.sql")
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" {
+			http.Error(w, "This route only accepts POST requests", 400)
+			return
+		}
+		
+		if r.Body == nil  {
+			http.Error(w, "Please send a request body", 400)
+			return
+		}
+
+		var data map[string]string
+		err := json.NewDecoder(r.Body).Decode(&data); if err != nil {
+			http.Error(w, err.Error(), 400)
+			return
+		}
+
+		//verify access token
+		if !verifyAccessToken(data["access_token"]) {
+			http.Error(w, "Access token is unauthorized", 401)
+			return
+		}
+
+		id, err := strconv.ParseInt(data["id"], 10, 64); if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+
+		var admin bool
+		err = stmt.QueryRow(id).Scan(&admin); if err != nil {
+			http.Error(w, err.Error(), 401)
+			return
+		}
+
+		if !admin {
+			http.Error(w, "User is not an admin. Unauthorized action.", 401)
+			return
+		}
+
+		var name string
+		err = stmt2.QueryRow(id).Scan(&name); if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+
+		if data["username"] != name {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+
+		_, err = stmt3.Exec(data["username"]); if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+	}
+}
+
 func main() {
 	http.Handle("/", http.FileServer(http.Dir("./static")))
 	http.HandleFunc("/welcome", welcomePageHandler())
 	http.HandleFunc("/login/credentials", loginCredentialsHandler())
 	http.HandleFunc("/register/credentials", registerCredentialsHandler())
 	http.HandleFunc("/verify/token", verifyTokenHandler)
-	//http.HandleFunc("/ssh", sshHandler())
-	//http.HandleFunc("/gpg", gpgHandler())
-	//http.HandleFunc("/elliptic", ellipticHandler()) //bitcoin, dogecoin, ethereum
+	http.HandleFunc("/update/username", updateUsernameHandler())
+	http.HandleFunc("/update/password", updatePasswordHandler())
+	http.HandleFunc("/admin/password", adminNewPasswordHandler())
+	http.HandleFunc("/admin/new", adminMakeAdminHandler())
+	http.HandleFunc("/admin/revoke", adminRevokeAdminHandler())
+	http.HandleFunc("/admin/delete/user", adminDeleteUserHandler())
+	
 	fmt.Println("Running Portal server at port 3333")
 	log.Fatal(http.ListenAndServe(":3333", nil))
 }
