@@ -1,1 +1,1 @@
-SELECT administrator FROM users WHERE id = $1;
+SELECT admin FROM users WHERE id = $1;

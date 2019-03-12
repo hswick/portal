@@ -23,22 +23,24 @@ func checkStatusCode(t *testing.T, r *http.Response, message string) {
 	}
 }
 
-func registerCreds(t *testing.T) {
+func registerCreds(t *testing.T, admin *ActiveUser) {
 	server := httptest.NewServer(http.HandlerFunc(registerCredentialsHandler()))
 	defer server.Close()
 	
-	creds := make(map[string]string)
-	creds["username"] = "shiba"
-	creds["password"] = "foobar"
+	data := make(map[string]string)
+	data["username"] = "foo"
+	data["password"] = "bar"
+	data["id"] = fmt.Sprintf("%d", admin.Id)
+	data["admin"] = "false"
 
-	res, _ := json.Marshal(creds)
+	res, _ := json.Marshal(data)
 	resp, err := http.Post(server.URL, "application/json", bytes.NewBuffer(res)); if err != nil {
 		t.Fatal("Registering credentials failed", err.Error())
 	}
 	defer resp.Body.Close()
 
 	checkStatusCode(t, resp, "Registering creds has error")
-	checkBody(t, resp)	
+	checkBody(t, resp)
 }
 
 func loginCreds(t *testing.T) *ActiveUser {
@@ -81,7 +83,7 @@ func verifyToken(t *testing.T, token string) {
 	q.Add("access_token", token)
 	q.Add("secret", secret)
 	q.Add("app_name", "canban")
-	q.Add("user_id", fmt.Sprintf("%d", 2))
+	q.Add("user_id", fmt.Sprintf("%d", 1))
 	req.URL.RawQuery = q.Encode()
 	client := &http.Client{}
 	resp, err := client.Do(req); if err != nil {
@@ -150,6 +152,7 @@ func adminNewPassword(t *testing.T, admin *ActiveUser, username string) {
 	data := make(map[string]string)
 	data["username"] = username
 	data["access_token"] = admin.AccessToken
+	data["id"] = fmt.Sprintf("%d", admin.Id)
 	res, _ := json.Marshal(data)
 
 	resp, err := http.Post(server.URL, "application/json", bytes.NewBuffer(res)); if err != nil {
@@ -178,6 +181,7 @@ func adminMakeAdmin(t *testing.T, admin *ActiveUser, username string) {
 	data := make(map[string]string)
 	data["username"] = username
 	data["access_token"] = admin.AccessToken
+	data["id"] = fmt.Sprintf("%d", admin.Id)
 	res, _ := json.Marshal(data)
 
 	resp, err := http.Post(server.URL, "application/json", bytes.NewBuffer(res)); if err != nil {
@@ -187,8 +191,9 @@ func adminMakeAdmin(t *testing.T, admin *ActiveUser, username string) {
 	checkStatusCode(t, resp, "Admin make admin error")
 	checkBody(t, resp)
 
+	stmt := prepareQuery("sql/check_admin_by_name.sql")
 	var b bool
-	err = db.QueryRow("SELECT admin FROM users WHERE name = $1").Scan(&b)
+	err = stmt.QueryRow(username).Scan(&b)
 
 	if !b {
 		t.Fatal("User is not an admin")
@@ -202,6 +207,7 @@ func adminRevokeAdmin(t *testing.T, admin *ActiveUser, username string) {
 	data := make(map[string]string)
 	data["username"] = username
 	data["access_token"] = admin.AccessToken
+	data["id"] = fmt.Sprintf("%d", admin.Id)
 	res, _ := json.Marshal(data)
 
 	resp, err := http.Post(server.URL, "application/json", bytes.NewBuffer(res)); if err != nil {
@@ -211,8 +217,9 @@ func adminRevokeAdmin(t *testing.T, admin *ActiveUser, username string) {
 	checkStatusCode(t, resp, "Admin revoke admin error")
 	checkBody(t, resp)
 
+	stmt := prepareQuery("sql/check_admin_by_name.sql")
 	var b bool
-	err = db.QueryRow("SELECT admin FROM users WHERE name = $1").Scan(&b)
+	err = stmt.QueryRow(username).Scan(&b)
 
 	if b {
 		t.Fatal("User is an admin")
@@ -226,6 +233,7 @@ func adminDeleteUser(t *testing.T, admin *ActiveUser, username string) {
 	data := make(map[string]string)
 	data["username"] = username
 	data["access_token"] = admin.AccessToken
+	data["id"] = fmt.Sprintf("%d", admin.Id)
 	res, _ := json.Marshal(data)
 
 	resp, err := http.Post(server.URL, "application/json", bytes.NewBuffer(res)); if err != nil {
@@ -242,16 +250,36 @@ func adminDeleteUser(t *testing.T, admin *ActiveUser, username string) {
 	}
 }
 
+func l(s string) {
+	fmt.Println(s)
+}
+
 func TestIntegrationApi(t *testing.T) {
-	registerCreds(t)
+
+	l("Login")
 	au := loginCreds(t)
+	
+	l("Verify")
 	verifyToken(t, au.AccessToken)
 
+	l("Update username")
 	updateUsername(t, au)
+
+	l("Update password")
 	updatePassword(t, au)
 
+	l("Register New User")
+	registerCreds(t, au)	
+
+	l("Admin password")
 	adminNewPassword(t, au, "foo")
+
+	l("Admin make admin")
 	adminMakeAdmin(t, au, "foo")
+
+	l("Admin revoke")
 	adminRevokeAdmin(t, au, "foo")
+
+	l("Admin delete")
 	adminDeleteUser(t, au, "foo")	
 }

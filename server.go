@@ -246,6 +246,7 @@ func loginCredentialsHandler() func(http.ResponseWriter, *http.Request) {
 func registerCredentialsHandler() func(http.ResponseWriter, *http.Request) {
 	
 	stmt := prepareQuery("sql/new_user_credentials.sql")
+	stmt2 := prepareQuery("sql/check_admin.sql")
 	
 	return func(w http.ResponseWriter, r *http.Request) {
 
@@ -259,19 +260,44 @@ func registerCredentialsHandler() func(http.ResponseWriter, *http.Request) {
 			return
 		}
 
-		var creds Credentials
-		err := json.NewDecoder(r.Body).Decode(&creds); if err != nil {
-			http.Error(w, err.Error(), 400)
-			return
-		}
-
-		var id int64
-		err = stmt.QueryRow(creds.UserName, creds.Password).Scan(&id); if err != nil {
+		var data map[string]string
+		err := json.NewDecoder(r.Body).Decode(&data); if err != nil {
 			http.Error(w, err.Error(), 500)
 			return
 		}
 
-		fmt.Fprintf(w, "%s", "Registration successful. Login with your username and password.")
+		if !verifyAccessToken(data["access_token"]) {
+			http.Error(w, "Access token is unauthorized", 401)
+			return
+		}		
+
+		id, err := strconv.ParseInt(data["id"], 10, 64); if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+
+		if !verifyUserAccess(data["access_token"], id) {
+			http.Error(w, "Access token is not authorized for user", 401)
+			return
+		}
+
+		var admin bool
+		err = stmt2.QueryRow(id).Scan(&admin); if err != nil {
+			http.Error(w, err.Error(), 401)
+			return
+		}
+
+		newAdmin := false
+		if data["admin"] == "true" {
+			newAdmin = true
+		}
+
+		_, err = stmt.Exec(data["username"], data["password"], newAdmin); if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+
+		fmt.Fprintf(w, "%s", "New user has been registered")
 	}
 }
 
@@ -314,12 +340,8 @@ func verifyTokenHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func updatePasswordHandler() func(http.ResponseWriter, *http.Request) {
-
-	stmt, err := db.Prepare("SELECT password FROM credentials WHERE id = $1"); if err != nil {
-		log.Fatal(err.Error())
-	}
-
-	stmt2 := prepareQuery("sql/update_user_password.sql")	
+	stmt := prepareQuery("sql/get_password.sql")
+	stmt2 := prepareQuery("sql/update_user_password.sql")
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
 			http.Error(w, "This route only accepts POST requests", 400)
@@ -356,7 +378,7 @@ func updatePasswordHandler() func(http.ResponseWriter, *http.Request) {
 		
 		//get password
 		var password string
-		err = stmt2.QueryRow(id).Scan(&password); if err != nil {
+		err = stmt.QueryRow(id).Scan(&password); if err != nil {
 			http.Error(w, err.Error(), 401)
 			return
 		}
@@ -366,7 +388,7 @@ func updatePasswordHandler() func(http.ResponseWriter, *http.Request) {
 			return
 		}
 
-		_, err = stmt.Exec(id, data["new_password"]); if err != nil {
+		_, err = stmt2.Exec(id, data["new_password"]); if err != nil {
 			http.Error(w, err.Error(), 401)
 			return
 		}
@@ -464,9 +486,9 @@ func adminNewPasswordHandler() func(http.ResponseWriter, *http.Request) {
 			return
 		}
 
-		var data2 map[string]string
-		data["password"] = newPassword
-		json.NewEncoder(w).Encode(&data2)
+		var body map[string]string = make(map[string]string)
+		body["password"] = newPassword
+		json.NewEncoder(w).Encode(&body)
 	}
 }
 
@@ -629,8 +651,8 @@ func adminDeleteUserHandler() func(http.ResponseWriter, *http.Request) {
 			return
 		}
 
-		if data["username"] != name {
-			http.Error(w, err.Error(), 500)
+		if data["username"] == name {
+			http.Error(w, "Cannot delete yourself", 500)
 			return
 		}
 
