@@ -12,6 +12,7 @@ import (
 	"time"
 	"github.com/BurntSushi/toml"
 	"github.com/robfig/cron"
+	"crypto/rand"
 	_ "github.com/lib/pq"
 )
 
@@ -149,14 +150,47 @@ func verifyUserAccess(token string, id int64) bool {
 	return true
 }
 
+const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+//Taken from here: https://medium.com/@kpbird/golang-generate-fixed-size-random-string-dd6dbd5e63c0
+func randASCIIBytes(n int) []byte {
+	output := make([]byte, n)
+
+	// We will take n bytes, one byte for each character of output.
+	randomness := make([]byte, n)
+
+	// read all random
+	_, err := rand.Read(randomness)
+	if err != nil {
+		panic(err)
+	}
+
+	l := len(letterBytes)
+	// fill output
+	for pos := range output {
+		// get random item
+		random := uint8(randomness[pos])
+
+		// random % 64
+		randomPos := random % uint8(l)
+
+		// put into output
+		output[pos] = letterBytes[randomPos]
+	}
+
+	return output
+}
+
 func activateUser(user *User) *ActiveUser {
-	var token string
+	var token string = string(randASCIIBytes(10))
+	
 	au := &ActiveUser{
 		Id: user.Id,
 		Name: user.Name,
 		AccessToken: token,
 		LoginAt: time.Now(),
 	}
+	
 	activeUsers[token] = au
 	return au
 }

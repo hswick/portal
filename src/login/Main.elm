@@ -1,7 +1,5 @@
 import Browser
 import Html
-import Http
-import Json.Encode as Encode
 import Html.Styled exposing (..)
 import Html.Styled.Attributes exposing (..)
 import Html.Styled.Events exposing (..)
@@ -29,8 +27,6 @@ type alias ActiveUser =
 type alias Model =
     { loginUsernameText : String
     , loginPasswordText : String
-    , registerUsernameText : String
-    , registerPasswordText : String
     , errorMessage : String
     }
 
@@ -39,20 +35,9 @@ init : () -> ( Model, Cmd Msg )
 init _ =
     ( { loginUsernameText = ""
       , loginPasswordText = ""
-      , registerUsernameText = ""
-      , registerPasswordText = ""
       , errorMessage = ""
       }
     , Cmd.none )
-
-                     
-postRegister : String -> String -> Cmd Msg
-postRegister username password =
-          Http.post
-                { url = "/register/credentials"
-                , body = Http.jsonBody (credentialsEncoder username password)
-                , expect = Http.expectWhatever PostRegister
-                }
 
 
 postLogin : String -> String -> Cmd Msg
@@ -85,12 +70,8 @@ credentialsEncoder username password =
 type Msg
      = LoginUsernameInput String
      | LoginPasswordInput String
-     | RegisterUsernameInput String
-     | RegisterPasswordInput String
      | SubmitLogin
      | PostLogin (Result Http.Error ActiveUser)
-     | SubmitRegister
-     | PostRegister (Result Http.Error ())
 
 
 activeUserToUrl : ActiveUser -> String
@@ -119,24 +100,6 @@ update msg model =
                                ( { model | errorMessage = "An error has occurred" }, Cmd.none )
 
 
-            RegisterUsernameInput username ->
-                                  ( { model | registerUsernameText = username }, Cmd.none )
-
-            RegisterPasswordInput password ->
-                                  ( { model | registerPasswordText = password }, Cmd.none )
-
-            SubmitRegister ->
-                        ( model, postRegister model.registerUsernameText model.registerPasswordText )
-
-            PostRegister result ->
-                      case result of
-                           Ok url ->
-                              ( model, Cmd.none )
-
-                           Err _ ->
-                               ( { model | errorMessage = "An error has occurred" }, Cmd.none )
-
-
 -- VIEW
 
 
@@ -144,7 +107,6 @@ view : Model -> Html Msg
 view model =
      div []
          [ loginView model
-         , registerView model
          , text model.errorMessage
          ]
 
@@ -156,12 +118,3 @@ loginView model =
          , input [ onInput LoginPasswordInput, placeholder "Password", value model.loginPasswordText ] []
          , button [ onClick SubmitLogin ] [ text "Login" ]
          ]
-
-
-registerView : Model -> Html Msg
-registerView model =
-          div []
-              [ input [ onInput RegisterUsernameInput, placeholder "Username", value model.registerUsernameText ] []
-              , input [ onInput RegisterPasswordInput, placeholder "Password", value model.registerPasswordText ] []
-              , button [ onClick SubmitRegister ] [ text "Register" ]
-              ]
