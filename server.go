@@ -196,7 +196,9 @@ func activateUser(user *User) *ActiveUser {
 }
 
 type Welcome struct{
-	ActiveUser *ActiveUser
+	Name string
+	Id int64
+	AccessToken string
 	Apps []string
 }
 
@@ -233,9 +235,12 @@ func welcomePageHandler() func(http.ResponseWriter, *http.Request) {
 		//Not checking for nil value, since redundant with above verification
 		au, _ := activeUsers[q["access_token"][0]]
 		t.Execute(w, &Welcome{
-			ActiveUser: au,
+			Name: au.Name,
+			Id: au.Id,
+			AccessToken: au.AccessToken,
 			Apps: apps.List,
 		})
+		return
 	}
 }
 

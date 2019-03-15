@@ -38,14 +38,18 @@ type alias Model =
   , adminChecked : Bool
   , id : Int
   , accessToken : String
+  , name : String
+  , apps : List String
   }
 
 
 type alias Flags =
-    { id : Int
+    { name : String
+    , id : Int
     , accessToken : String
+    , apps : List String
     }
-    
+
 
 init : Flags -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
 init flags url key =
@@ -59,10 +63,12 @@ init flags url key =
     , adminChecked = False
     , id = flags.id
     , accessToken = flags.accessToken
+    , name = flags.name
+    , apps = flags.apps
     }
   , Cmd.none )
 
-    
+
 postChangeUsername : Model -> Cmd Msg
 postChangeUsername model =
     Http.post
@@ -80,6 +86,7 @@ updateUsernameEncoder model =
         , ("access_token", Encode.string model.accessToken)
         ]
 
+        
 postChangePassword : Model -> Cmd Msg
 postChangePassword model =
     Http.post
@@ -284,7 +291,7 @@ subscriptions _ =
 
 view : Model -> Browser.Document Msg
 view model =
-  { title = "URL Interceptor"
+  { title = "Portal"
   , body = [ viewRouter model ]
   }
 
@@ -297,23 +304,24 @@ viewRouter model =
 
         _ ->
             welcomeView model
-                
+
 
 viewLink : String -> Html Msg
 viewLink path =
-  li [] [ a [ href path ] [ text path ] ]
+  a [ href path ] [ text path ]
 
 
 welcomeView : Model -> Html Msg
 welcomeView model =
     table []
-        [ tr []
-              [ td [] [ viewLink "/settings" ]
-              , td [] [ a [ href "/canban" ] [ text "canban" ] ]
-              ]
-         ]
+        [ tr [] ((td [] [ viewLink "/settings"] ) :: List.map appView model.apps) ]
 
+            
+appView : String -> Html Msg
+appView name =
+    td [] [ a [ href ("/" ++ name) ] [ text name ] ]
 
+        
 settingsView : Model -> Html Msg
 settingsView model =
     div []
