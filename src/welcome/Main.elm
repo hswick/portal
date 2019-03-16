@@ -287,19 +287,34 @@ subscriptions _ =
 
 
 -- VIEW
-    
+
 
 view : Model -> Browser.Document Msg
 view model =
-  { title = "Portal"
-  , body = [ viewRouter model ]
-  }
+  let
+      route = parseRoute model.url
+  in
+      { title = "Portal"
+      , body = [ text route
+               , viewRouter model route
+               ]
+      }
 
 
-viewRouter : Model -> Html Msg
-viewRouter model =
-    case (Url.toString model.url) of
-        "/settings" ->
+parseRoute : Url.Url -> String
+parseRoute url =
+    url
+    |> Url.toString
+    |> String.split "/"
+    |> List.drop 3
+    |> List.head
+    |> Maybe.withDefault "error"
+
+               
+viewRouter : Model -> String -> Html Msg
+viewRouter model route =
+    case route of
+        "settings" ->
             settingsView model
 
         _ ->
@@ -350,21 +365,38 @@ changePasswordView model =
 adminSettingsView : Model -> Html Msg
 adminSettingsView model =
     div []
-        [ input [ onInput OtherUsernameInput, placeholder "Other username", value model.otherUsernameText ] []
-        , button [ onClick AdminNewPassword ] [ text "New Password" ]
-        , text model.newPassword
-        , button [ onClick MakeAdmin ] [ text "Make Admin" ]
-        , button [ onClick RevokeAdmin ] [ text "Revoke Admin" ]
-        , button [ onClick DeleteUser ] [ text "Delete User" ]
-        , newUserView model
+        [ text "Update another user's settings or status:"
+        , div []
+            [ input [ onInput OtherUsernameInput, placeholder "Other username", value model.otherUsernameText ] []
+            , div []
+                [ button [ onClick AdminNewPassword ] [ text "New Password" ]
+                , text model.newPassword
+                ]
+            , div []
+                [ text "Modify another user's admin status:"
+                , button [ onClick MakeAdmin ] [ text "Make Admin" ]
+                , button [ onClick RevokeAdmin ] [ text "Revoke Admin" ]
+                ]
+            , div []
+                [ button [ onClick DeleteUser ] [ text "Delete User" ]
+                , text "WARNING: This will delete users access to Portal."
+                ]
+            , newUserView model
+            ]
         ]
 
 
 newUserView : Model -> Html Msg
 newUserView model =
         div []
-            [ input [ onInput OtherUsernameInput, placeholder "Other username", value model.otherUsernameText ] []
-            , input [ onInput OtherPasswordInput, placeholder "New user's password", value model.otherPasswordText ] []
-            , input [ type_ "checkbox", checked model.adminChecked, onClick ToggleAdmin ] []
-            , button [ onClick NewUser ] [ text "New User" ]
+            [ text "Register new user here:"
+            , div []
+                [ div [] [ input [ onInput OtherUsernameInput, placeholder "Other username", value model.otherUsernameText ] [] ]
+                , div [] [ input [ onInput OtherPasswordInput, placeholder "New user's password", value model.otherPasswordText ] [] ]
+                , div []
+                    [ text "Admin Y/N: "
+                    , input [ type_ "checkbox", checked model.adminChecked, onClick ToggleAdmin ] []
+                    ]
+                , button [ onClick NewUser ] [ text "New User" ]
+                ]
             ]
