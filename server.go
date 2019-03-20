@@ -249,21 +249,11 @@ type Credentials struct{
 	Password string `json:"password"`
 }
 
-func loginCredentialsHandler() func(http.ResponseWriter, *http.Request) {
+func loginCredentialsHandler() http.HandlerFunc {
 	
 	stmt := prepareQuery("sql/check_login_credentials.sql")
-	
-	return func(w http.ResponseWriter, r *http.Request) {
 
-		if r.Method != "POST" {
-			http.Error(w, "This route only accepts POST requests", 400)
-			return
-		}
-		
-		if r.Body == nil {
-			http.Error(w, "Please send a request body", 400)
-			return
-		}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		var creds Credentials
 		err := json.NewDecoder(r.Body).Decode(&creds); if err != nil {
@@ -279,25 +269,15 @@ func loginCredentialsHandler() func(http.ResponseWriter, *http.Request) {
 
 		au := activateUser(&u)
 		json.NewEncoder(w).Encode(&au)
-	}
+	})
 }
 
-func registerCredentialsHandler() func(http.ResponseWriter, *http.Request) {
+func registerCredentialsHandler() http.HandlerFunc {
 	
 	stmt := prepareQuery("sql/new_user_credentials.sql")
 	stmt2 := prepareQuery("sql/check_admin.sql")
 	
-	return func(w http.ResponseWriter, r *http.Request) {
-
-		if r.Method != "POST" {
-			http.Error(w, "This route only accepts POST requests", 400)
-			return
-		}
-		
-		if r.Body == nil  {
-			http.Error(w, "Please send a request body", 400)
-			return
-		}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		var data map[string]string
 		err := json.NewDecoder(r.Body).Decode(&data); if err != nil {
@@ -337,7 +317,7 @@ func registerCredentialsHandler() func(http.ResponseWriter, *http.Request) {
 		}
 
 		fmt.Fprintf(w, "%s", "New user has been registered")
-	}
+	})
 }
 
 func verifyTokenHandler(w http.ResponseWriter, r *http.Request) {
@@ -378,19 +358,10 @@ func verifyTokenHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(&data)
 }
 
-func updatePasswordHandler() func(http.ResponseWriter, *http.Request) {
+func updatePasswordHandler() http.HandlerFunc {
 	stmt := prepareQuery("sql/get_password.sql")
 	stmt2 := prepareQuery("sql/update_user_password.sql")
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "POST" {
-			http.Error(w, "This route only accepts POST requests", 400)
-			return
-		}
-		
-		if r.Body == nil  {
-			http.Error(w, "Please send a request body", 400)
-			return
-		}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		var data map[string]string
 		err := json.NewDecoder(r.Body).Decode(&data); if err != nil {
@@ -431,21 +402,12 @@ func updatePasswordHandler() func(http.ResponseWriter, *http.Request) {
 			http.Error(w, err.Error(), 401)
 			return
 		}
-	}
+	})
 }
 
-func updateUsernameHandler() func(http.ResponseWriter, *http.Request) {
+func updateUsernameHandler() http.HandlerFunc {
 	stmt := prepareQuery("sql/update_user_name.sql")
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "POST" {
-			http.Error(w, "This route only accepts POST requests", 400)
-			return
-		}
-		
-		if r.Body == nil  {
-			http.Error(w, "Please send a request body", 400)
-			return
-		}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		var data map[string]string
 		err := json.NewDecoder(r.Body).Decode(&data); if err != nil {
@@ -473,22 +435,13 @@ func updateUsernameHandler() func(http.ResponseWriter, *http.Request) {
 			http.Error(w, err.Error(), 401)
 			return
 		}
-	}
+	})
 }
 
-func adminNewPasswordHandler() func(http.ResponseWriter, *http.Request) {
+func adminNewPasswordHandler() http.HandlerFunc {
 	stmt := prepareQuery("sql/check_admin.sql")
 	stmt2 := prepareQuery("sql/update_other_user_password.sql")
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "POST" {
-			http.Error(w, "This route only accepts POST requests", 400)
-			return
-		}
-		
-		if r.Body == nil  {
-			http.Error(w, "Please send a request body", 400)
-			return
-		}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		var data map[string]string
 		err := json.NewDecoder(r.Body).Decode(&data); if err != nil {
@@ -528,22 +481,13 @@ func adminNewPasswordHandler() func(http.ResponseWriter, *http.Request) {
 		var body map[string]string = make(map[string]string)
 		body["password"] = newPassword
 		json.NewEncoder(w).Encode(&body)
-	}
+	})
 }
 
-func adminMakeAdminHandler() func(http.ResponseWriter, *http.Request) {
+func adminMakeAdminHandler() http.HandlerFunc {
 	stmt := prepareQuery("sql/check_admin.sql")	
 	stmt2 := prepareQuery("sql/update_admin.sql")
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "POST" {
-			http.Error(w, "This route only accepts POST requests", 400)
-			return
-		}
-		
-		if r.Body == nil  {
-			http.Error(w, "Please send a request body", 400)
-			return
-		}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		var data map[string]string
 		err := json.NewDecoder(r.Body).Decode(&data); if err != nil {
@@ -577,23 +521,16 @@ func adminMakeAdminHandler() func(http.ResponseWriter, *http.Request) {
 			http.Error(w, err.Error(), 500)
 			return
 		}
-	}
+	})
 }
 
-func adminRevokeAdminHandler() func(http.ResponseWriter, *http.Request) {
+func adminRevokeAdminHandler() http.HandlerFunc {
+	
 	stmt := prepareQuery("sql/check_admin.sql")
 	stmt2 := prepareQuery("sql/get_user_name.sql")
 	stmt3 := prepareQuery("sql/update_admin.sql")
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "POST" {
-			http.Error(w, "This route only accepts POST requests", 400)
-			return
-		}
-		
-		if r.Body == nil  {
-			http.Error(w, "Please send a request body", 400)
-			return
-		}
+	
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		var data map[string]string
 		err := json.NewDecoder(r.Body).Decode(&data); if err != nil {
@@ -638,23 +575,16 @@ func adminRevokeAdminHandler() func(http.ResponseWriter, *http.Request) {
 			http.Error(w, err.Error(), 500)
 			return
 		}
-	}
+	})
 }
 
-func adminDeleteUserHandler() func(http.ResponseWriter, *http.Request) {
+func adminDeleteUserHandler() http.HandlerFunc {
+	
 	stmt := prepareQuery("sql/check_admin.sql")
 	stmt2 := prepareQuery("sql/get_user_name.sql")
 	stmt3 := prepareQuery("sql/delete_user.sql")
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "POST" {
-			http.Error(w, "This route only accepts POST requests", 400)
-			return
-		}
-		
-		if r.Body == nil  {
-			http.Error(w, "Please send a request body", 400)
-			return
-		}
+	
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		var data map[string]string
 		err := json.NewDecoder(r.Body).Decode(&data); if err != nil {
@@ -699,21 +629,25 @@ func adminDeleteUserHandler() func(http.ResponseWriter, *http.Request) {
 			http.Error(w, err.Error(), 500)
 			return
 		}
-	}
+	})
 }
 
 func main() {
 	http.Handle("/", http.FileServer(http.Dir("./static")))
+	
 	http.HandleFunc("/welcome", welcomePageHandler())
-	http.HandleFunc("/login/credentials", loginCredentialsHandler())
-	http.HandleFunc("/register/credentials", registerCredentialsHandler())
+	
+	http.Handle("/login/credentials", originMiddleware(postMiddleware(loginCredentialsHandler())))
+	http.Handle("/register/credentials", originMiddleware(postMiddleware(registerCredentialsHandler())))
+	
 	http.HandleFunc("/verify/token", verifyTokenHandler)
-	http.HandleFunc("/update/username", updateUsernameHandler())
-	http.HandleFunc("/update/password", updatePasswordHandler())
-	http.HandleFunc("/admin/password", adminNewPasswordHandler())
-	http.HandleFunc("/admin/new", adminMakeAdminHandler())
-	http.HandleFunc("/admin/revoke", adminRevokeAdminHandler())
-	http.HandleFunc("/admin/delete/user", adminDeleteUserHandler())
+	
+	http.Handle("/update/username", originMiddleware(postMiddleware(updateUsernameHandler())))
+	http.Handle("/update/password", originMiddleware(postMiddleware(updatePasswordHandler())))
+	http.Handle("/admin/password", originMiddleware(postMiddleware(adminNewPasswordHandler())))
+	http.Handle("/admin/new", originMiddleware(postMiddleware(adminMakeAdminHandler())))
+	http.Handle("/admin/revoke", originMiddleware(postMiddleware(adminRevokeAdminHandler())))
+	http.Handle("/admin/delete/user", originMiddleware(postMiddleware(adminDeleteUserHandler())))
 	
 	fmt.Println("Running Portal server at port 3333")
 	log.Fatal(http.ListenAndServe(":3333", nil))

@@ -23,6 +23,27 @@ func checkStatusCode(t *testing.T, r *http.Response, message string) {
 	}
 }
 
+func postRequest(url string, data []byte) (*http.Response, error) {
+	client := &http.Client{}
+	req, _ := http.NewRequest("POST", url, bytes.NewBuffer(data))
+	req.Header.Set("Origin", "foo.bar")
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := client.Do(req);
+
+	return resp, err
+}
+
+func postRequestToken(url string, data []byte, token string) (*http.Response, error) {
+	client := &http.Client{}
+	req, _ := http.NewRequest("POST", url, bytes.NewBuffer(data))
+	req.Header.Set("Origin", "foo.bar")
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Cookie", token)
+	resp, err := client.Do(req);
+
+	return resp, err	
+}
+
 func registerCreds(t *testing.T, admin *ActiveUser) {
 	server := httptest.NewServer(http.HandlerFunc(registerCredentialsHandler()))
 	defer server.Close()
@@ -52,11 +73,11 @@ func loginCreds(t *testing.T) *ActiveUser {
 	creds["password"]="foobar"
 	res, _ := json.Marshal(creds)
 
-	resp, err := http.Post(server.URL, "application/json", bytes.NewBuffer(res)); if err != nil {
+	resp, err := postRequest(server.URL, res)
+	if err != nil {
 		t.Fatal("Logging in credentials failed with:", err.Error())
 	}
-	defer resp.Body.Close()
-
+	
 	checkStatusCode(t, resp, "Login credentials has error")
 	checkBody(t, resp)
 
