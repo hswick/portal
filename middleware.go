@@ -36,3 +36,15 @@ func originMiddleware(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 	})
 }
+
+func cookieMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		
+		if !verifyAccessToken(r.Header.Get("Cookie") {
+			http.Error(w, "Access token is unauthorized", 400)
+			return
+		}
+		
+		next.ServeHTTP(w, r)
+	})
+}

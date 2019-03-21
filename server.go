@@ -202,12 +202,13 @@ type Welcome struct{
 	Apps []string
 }
 
-func welcomePageHandler() func(http.ResponseWriter, *http.Request) {
+func welcomePageHandler() http.HandlerFunc {
+	
 	t, err := template.ParseFiles("./static/welcome.html"); if err != nil {
 		log.Fatal(err.Error())
 	}
 
-	return func(w http.ResponseWriter, r *http.Request) {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		
 		q := r.URL.Query()
 		
@@ -222,18 +223,12 @@ func welcomePageHandler() func(http.ResponseWriter, *http.Request) {
 			return
 		}
 		
-		if !verifyAccessToken(q["access_token"][0]) {
-			http.Error(w, "Access token is unauthorized", 401)
-			return
-		}
-
-		if !verifyUserAccess(q["access_token"][0], id) {
+		if !verifyUserAccess(r.Header.Get("Cookie"), id) {
 			http.Error(w, "Acccess token unauthorized for user", 401)
 			return
 		}
 
-		//Not checking for nil value, since redundant with above verification
-		au, _ := activeUsers[q["access_token"][0]]
+		au, _ := activeUsers[r.Header.Get("Cookie")]
 		t.Execute(w, &Welcome{
 			Name: au.Name,
 			Id: au.Id,
@@ -241,7 +236,7 @@ func welcomePageHandler() func(http.ResponseWriter, *http.Request) {
 			Apps: apps.List,
 		})
 		return
-	}
+	})
 }
 
 type Credentials struct{
@@ -285,17 +280,12 @@ func registerCredentialsHandler() http.HandlerFunc {
 			return
 		}
 
-		if !verifyAccessToken(data["access_token"]) {
-			http.Error(w, "Access token is unauthorized", 401)
-			return
-		}		
-
 		id, err := strconv.ParseInt(data["id"], 10, 64); if err != nil {
 			http.Error(w, err.Error(), 500)
 			return
 		}
 
-		if !verifyUserAccess(data["access_token"], id) {
+		if !verifyUserAccess(r.Header.Get("Cookie"), id) {
 			http.Error(w, "Access token is not authorized for user", 401)
 			return
 		}
@@ -369,19 +359,12 @@ func updatePasswordHandler() http.HandlerFunc {
 			return
 		}
 
-		//verify access token
-		if !verifyAccessToken(data["access_token"]) {
-			http.Error(w, "Access token is unauthorized", 401)
-			return
-		}
-
-
 		id, err := strconv.ParseInt(data["id"], 10, 64); if err != nil {
 			http.Error(w, err.Error(), 500)
 			return
 		}
 		
-		if !verifyUserAccess(data["access_token"], id) {
+		if !verifyUserAccess(r.Header.Get("Cookie"), id) {
 			http.Error(w, "Access token is not authorized for user", 401)
 			return
 		}
@@ -415,18 +398,12 @@ func updateUsernameHandler() http.HandlerFunc {
 			return
 		}
 
-		//verify access token
-		if !verifyAccessToken(data["access_token"]) {
-			http.Error(w, "Access token is unauthorized", 401)
-			return
-		}
-
 		id, err := strconv.ParseInt(data["id"], 10, 64); if err != nil {
 			http.Error(w, err.Error(), 500)
 			return
 		}
 		
-		if !verifyUserAccess(data["access_token"], id) {
+		if !verifyUserAccess(r.Header.Get("Cookie"), id) {
 			http.Error(w, "Access token is not authorized for user", 401)
 			return
 		}
@@ -449,16 +426,15 @@ func adminNewPasswordHandler() http.HandlerFunc {
 			return
 		}
 
-		//verify access token
-		if !verifyAccessToken(data["access_token"]) {
-			http.Error(w, "Access token is unauthorized", 401)
-			return
-		}
-
 		id, err := strconv.ParseInt(data["id"], 10, 64); if err != nil {
 			http.Error(w, err.Error(), 500)
 			return
 		}
+
+		if !verifyUserAccess(r.Header.Get("Cookie"), id) {
+			http.Error(w, "Access token is not authorized for user", 401)
+			return
+		}		
 
 		var admin bool
 		err = stmt.QueryRow(id).Scan(&admin); if err != nil {
@@ -495,16 +471,15 @@ func adminMakeAdminHandler() http.HandlerFunc {
 			return
 		}
 
-		//verify access token
-		if !verifyAccessToken(data["access_token"]) {
-			http.Error(w, "Access token is unauthorized", 401)
-			return
-		}
-
 		id, err := strconv.ParseInt(data["id"], 10, 64); if err != nil {
 			http.Error(w, err.Error(), 500)
 			return
 		}
+
+		if !verifyUserAccess(r.Header.Get("Cookie"), id) {
+			http.Error(w, "Access token is not authorized for user", 401)
+			return
+		}		
 
 		var admin bool
 		err = stmt.QueryRow(id).Scan(&admin); if err != nil {
@@ -538,16 +513,15 @@ func adminRevokeAdminHandler() http.HandlerFunc {
 			return
 		}
 
-		//verify access token
-		if !verifyAccessToken(data["access_token"]) {
-			http.Error(w, "Access token is unauthorized", 401)
-			return
-		}
-
 		id, err := strconv.ParseInt(data["id"], 10, 64); if err != nil {
 			http.Error(w, err.Error(), 500)
 			return
 		}
+
+		if !verifyUserAccess(r.Header.Get("Cookie"), id) {
+			http.Error(w, "Access token is not authorized for user", 401)
+			return
+		}		
 
 		var admin bool
 		err = stmt.QueryRow(id).Scan(&admin); if err != nil {
@@ -592,16 +566,15 @@ func adminDeleteUserHandler() http.HandlerFunc {
 			return
 		}
 
-		//verify access token
-		if !verifyAccessToken(data["access_token"]) {
-			http.Error(w, "Access token is unauthorized", 401)
-			return
-		}
-
 		id, err := strconv.ParseInt(data["id"], 10, 64); if err != nil {
 			http.Error(w, err.Error(), 500)
 			return
 		}
+
+		if !verifyUserAccess(r.Header.Get("Cookie"), id) {
+			http.Error(w, "Access token is not authorized for user", 401)
+			return
+		}		
 
 		var admin bool
 		err = stmt.QueryRow(id).Scan(&admin); if err != nil {
@@ -632,22 +605,27 @@ func adminDeleteUserHandler() http.HandlerFunc {
 	})
 }
 
+func postDefense(h http.HandlerFunc) http.HandlerFunc {
+	cookieMiddleware(originMiddleware(postMiddleware(h)))
+}
+
 func main() {
 	http.Handle("/", http.FileServer(http.Dir("./static")))
 	
-	http.HandleFunc("/welcome", welcomePageHandler())
+	http.Handle("/welcome", cookieMiddleware(welcomePageHandler()))
 	
 	http.Handle("/login/credentials", originMiddleware(postMiddleware(loginCredentialsHandler())))
-	http.Handle("/register/credentials", originMiddleware(postMiddleware(registerCredentialsHandler())))
+	
+	http.Handle("/register/credentials", postDefense(registerCredentialsHandler()))
 	
 	http.HandleFunc("/verify/token", verifyTokenHandler)
 	
-	http.Handle("/update/username", originMiddleware(postMiddleware(updateUsernameHandler())))
-	http.Handle("/update/password", originMiddleware(postMiddleware(updatePasswordHandler())))
-	http.Handle("/admin/password", originMiddleware(postMiddleware(adminNewPasswordHandler())))
-	http.Handle("/admin/new", originMiddleware(postMiddleware(adminMakeAdminHandler())))
-	http.Handle("/admin/revoke", originMiddleware(postMiddleware(adminRevokeAdminHandler())))
-	http.Handle("/admin/delete/user", originMiddleware(postMiddleware(adminDeleteUserHandler())))
+	http.Handle("/update/username", postDefense(updateUsernameHandler())
+	http.Handle("/update/password", postDefense(updatePasswordHandler()))
+	http.Handle("/admin/password", postDefense(adminNewPasswordHandler()))
+	http.Handle("/admin/new", postDefense(adminMakeAdminHandler()))
+	http.Handle("/admin/revoke", postDefense(adminRevokeAdminHandler()))
+	http.Handle("/admin/delete/user", postDefense(adminDeleteUserHandler()))
 	
 	fmt.Println("Running Portal server at port 3333")
 	log.Fatal(http.ListenAndServe(":3333", nil))
