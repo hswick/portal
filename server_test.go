@@ -26,7 +26,7 @@ func checkStatusCode(t *testing.T, r *http.Response, message string) {
 func postRequest(url string, data []byte) (*http.Response, error) {
 	client := &http.Client{}
 	req, _ := http.NewRequest("POST", url, bytes.NewBuffer(data))
-	req.Header.Set("Origin", "foo.bar")
+	req.Header.Set("Origin", config.Domain)
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := client.Do(req);
 
@@ -35,8 +35,10 @@ func postRequest(url string, data []byte) (*http.Response, error) {
 
 func postRequestToken(url string, data []byte, token string) (*http.Response, error) {
 	client := &http.Client{}
-	req, _ := http.NewRequest("POST", url, bytes.NewBuffer(data))
-	req.Header.Set("Origin", "foo.bar")
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(data)); if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Origin", config.Domain)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Cookie", token)
 	resp, err := client.Do(req);
@@ -45,7 +47,7 @@ func postRequestToken(url string, data []byte, token string) (*http.Response, er
 }
 
 func registerCreds(t *testing.T, admin *ActiveUser) {
-	server := httptest.NewServer(http.HandlerFunc(registerCredentialsHandler()))
+	server := httptest.NewServer(postDefense(registerCredentialsHandler()))
 	defer server.Close()
 	
 	data := make(map[string]string)
@@ -53,9 +55,9 @@ func registerCreds(t *testing.T, admin *ActiveUser) {
 	data["password"] = "bar"
 	data["id"] = fmt.Sprintf("%d", admin.Id)
 	data["admin"] = "false"
-
 	res, _ := json.Marshal(data)
-	resp, err := http.Post(server.URL, "application/json", bytes.NewBuffer(res)); if err != nil {
+	
+	resp, err := postRequestToken(server.URL, res, admin.AccessToken); if err != nil {
 		t.Fatal("Registering credentials failed", err.Error())
 	}
 	defer resp.Body.Close()
@@ -65,7 +67,7 @@ func registerCreds(t *testing.T, admin *ActiveUser) {
 }
 
 func loginCreds(t *testing.T) *ActiveUser {
-	server := httptest.NewServer(http.HandlerFunc(loginCredentialsHandler()))
+	server := httptest.NewServer(originMiddleware(postMiddleware(loginCredentialsHandler())))
 	defer server.Close()
 
 	creds := make(map[string]string)
@@ -130,16 +132,15 @@ func verifyToken(t *testing.T, token string) {
 }
 
 func updateUsername(t *testing.T, au *ActiveUser) {
-	server := httptest.NewServer(http.HandlerFunc(updateUsernameHandler()))
+	server := httptest.NewServer(postDefense(updateUsernameHandler()))
 	defer server.Close()
 
 	data := make(map[string]string)
 	data["username"] = "shiba2"
 	data["id"] = fmt.Sprintf("%d", au.Id)
-	data["access_token"] = au.AccessToken
 	res, _ := json.Marshal(data)
 
-	resp, err := http.Post(server.URL, "application/json", bytes.NewBuffer(res)); if err != nil {
+	resp, err := postRequestToken(server.URL, res, au.AccessToken); if err != nil {
 		t.Fatal("Updating username failed with:", err.Error())
 	}
 
@@ -148,17 +149,16 @@ func updateUsername(t *testing.T, au *ActiveUser) {
 }
 
 func updatePassword(t *testing.T, au *ActiveUser) {
-	server := httptest.NewServer(http.HandlerFunc(updatePasswordHandler()))
+	server := httptest.NewServer(postDefense(updatePasswordHandler()))
 	defer server.Close()
 
 	data := make(map[string]string)
 	data["new_password"] = "foobar2"
 	data["old_password"] = "foobar"
 	data["id"] = fmt.Sprintf("%d", au.Id)
-	data["access_token"] = au.AccessToken
 	res, _ := json.Marshal(data)
 
-	resp, err := http.Post(server.URL, "application/json", bytes.NewBuffer(res)); if err != nil {
+	resp, err := postRequestToken(server.URL, res, au.AccessToken); if err != nil {
 		t.Fatal("Updating password failed with:", err.Error())
 	}
 
@@ -167,16 +167,15 @@ func updatePassword(t *testing.T, au *ActiveUser) {
 }
 
 func adminNewPassword(t *testing.T, admin *ActiveUser, username string) {
-	server := httptest.NewServer(http.HandlerFunc(adminNewPasswordHandler()))
+	server := httptest.NewServer(postDefense(adminNewPasswordHandler()))
 	defer server.Close()
 
 	data := make(map[string]string)
 	data["username"] = username
-	data["access_token"] = admin.AccessToken
 	data["id"] = fmt.Sprintf("%d", admin.Id)
 	res, _ := json.Marshal(data)
 
-	resp, err := http.Post(server.URL, "application/json", bytes.NewBuffer(res)); if err != nil {
+	resp, err := postRequestToken(server.URL, res, admin.AccessToken); if err != nil {
 		t.Fatal("Admin new password failed with:", err.Error())
 	}
 
@@ -190,22 +189,29 @@ func adminNewPassword(t *testing.T, admin *ActiveUser, username string) {
 		t.Fatal("No password field in response body")
 	}
 
-	if p != "supersecure" {
-		t.Fatal("Expecting password to be 'supersecure'")
+	if p == "" {
+		t.Fatal("New password is empty")
 	}
+
+	if len(p) < 10 {
+		t.Fatal("New password is less than 10 characters")
+	}
+
+	//More tests for password?
+	//Currently poor passwords can get through, but I don't want to deal with random tests for now
+
 }
 
 func adminMakeAdmin(t *testing.T, admin *ActiveUser, username string) {
-	server := httptest.NewServer(http.HandlerFunc(adminMakeAdminHandler()))
+	server := httptest.NewServer(postDefense(adminMakeAdminHandler()))
 	defer server.Close()
 
 	data := make(map[string]string)
 	data["username"] = username
-	data["access_token"] = admin.AccessToken
 	data["id"] = fmt.Sprintf("%d", admin.Id)
 	res, _ := json.Marshal(data)
 
-	resp, err := http.Post(server.URL, "application/json", bytes.NewBuffer(res)); if err != nil {
+	resp, err := postRequestToken(server.URL, res, admin.AccessToken); if err != nil {
 		t.Fatal("Admin make admin failed with:", err.Error())
 	}
 
@@ -222,17 +228,16 @@ func adminMakeAdmin(t *testing.T, admin *ActiveUser, username string) {
 }
 
 func adminRevokeAdmin(t *testing.T, admin *ActiveUser, username string) {
-	server := httptest.NewServer(http.HandlerFunc(adminRevokeAdminHandler()))
+	server := httptest.NewServer(postDefense(adminRevokeAdminHandler()))
 	defer server.Close()
 
 	data := make(map[string]string)
 	data["username"] = username
-	data["access_token"] = admin.AccessToken
 	data["id"] = fmt.Sprintf("%d", admin.Id)
 	res, _ := json.Marshal(data)
 
-	resp, err := http.Post(server.URL, "application/json", bytes.NewBuffer(res)); if err != nil {
-		t.Fatal("Admin revoke admin failed with:", err.Error())
+	resp, err := postRequestToken(server.URL, res, admin.AccessToken); if err != nil {
+		t.Fatal("Admin revoke admin failed with:", err.Error())		
 	}
 
 	checkStatusCode(t, resp, "Admin revoke admin error")
@@ -248,16 +253,15 @@ func adminRevokeAdmin(t *testing.T, admin *ActiveUser, username string) {
 }
 
 func adminDeleteUser(t *testing.T, admin *ActiveUser, username string) {
-	server := httptest.NewServer(http.HandlerFunc(adminDeleteUserHandler()))
+	server := httptest.NewServer(postDefense(adminDeleteUserHandler()))
 	defer server.Close()
 
 	data := make(map[string]string)
 	data["username"] = username
-	data["access_token"] = admin.AccessToken
 	data["id"] = fmt.Sprintf("%d", admin.Id)
 	res, _ := json.Marshal(data)
 
-	resp, err := http.Post(server.URL, "application/json", bytes.NewBuffer(res)); if err != nil {
+	resp, err := postRequestToken(server.URL, res, admin.AccessToken); if err != nil {
 		t.Fatal("Admin delete user failed with:", err.Error())
 	}
 

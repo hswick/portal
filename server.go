@@ -16,6 +16,27 @@ import (
 	_ "github.com/lib/pq"
 )
 
+type Config struct {
+	Port string
+	Domain string
+}
+
+func loadConfig() *Config {
+	tomlData, err := ioutil.ReadFile("config.toml"); if err != nil {
+		log.Fatal(err.Error())
+	}
+
+	var config Config
+	_, err = toml.Decode(string(tomlData), &config); if err != nil {
+		log.Fatal(err.Error())
+	}
+
+	return &config
+
+}
+
+var config *Config = loadConfig() 
+
 func dbConnection() *sql.DB {
 
 	tomlData, err := ioutil.ReadFile("db.toml"); if err != nil {
@@ -232,7 +253,6 @@ func welcomePageHandler() http.HandlerFunc {
 		t.Execute(w, &Welcome{
 			Name: au.Name,
 			Id: au.Id,
-			AccessToken: au.AccessToken,
 			Apps: apps.List,
 		})
 		return
@@ -447,7 +467,7 @@ func adminNewPasswordHandler() http.HandlerFunc {
 			return
 		}
 
-		newPassword := "supersecure"
+		newPassword := string(randASCIIBytes(10))
 
 		_, err = stmt2.Exec(data["username"], newPassword); if err != nil {
 			http.Error(w, err.Error(), 500)
@@ -605,8 +625,8 @@ func adminDeleteUserHandler() http.HandlerFunc {
 	})
 }
 
-func postDefense(h http.HandlerFunc) http.HandlerFunc {
-	cookieMiddleware(originMiddleware(postMiddleware(h)))
+func postDefense(h http.HandlerFunc) http.Handler {
+	return originMiddleware(cookieMiddleware(postMiddleware(h)))
 }
 
 func main() {
@@ -620,7 +640,7 @@ func main() {
 	
 	http.HandleFunc("/verify/token", verifyTokenHandler)
 	
-	http.Handle("/update/username", postDefense(updateUsernameHandler())
+	http.Handle("/update/username", postDefense(updateUsernameHandler()))
 	http.Handle("/update/password", postDefense(updatePasswordHandler()))
 	http.Handle("/admin/password", postDefense(adminNewPasswordHandler()))
 	http.Handle("/admin/new", postDefense(adminMakeAdminHandler()))
