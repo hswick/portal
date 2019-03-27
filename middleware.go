@@ -3,6 +3,7 @@ package main
 import (
 	"net/http"
 	"fmt"
+	"net/url"
 )
 
 func postMiddleware(next http.Handler) http.Handler {
@@ -26,9 +27,14 @@ func postMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+//var localhost string = fmt.Sprintf("http://localhost%s/", config.Port)
+
+//TODO: Review this origin policy, may still be insecure
+//Probably need to check localhost
 func badOrigin(origin string, referer string) bool {
-	localhost := fmt.Sprintf("http://localhost%s", config.Port)
-	return origin != config.Domain && referer != config.Domain && origin != localhost && referer != localhost
+	originUrl, _ := url.Parse(origin)
+	refererUrl, _ := url.Parse(referer)
+	return originUrl.Hostname() != config.Domain && refererUrl.Hostname() != config.Domain && originUrl.Hostname() != "localhost" && refererUrl.Hostname() != "localhost"
 }
 
 func originMiddleware(next http.Handler) http.Handler {
@@ -38,7 +44,8 @@ func originMiddleware(next http.Handler) http.Handler {
 		referer := r.Header.Get("Referer")
 		
 		if badOrigin(origin, referer) {
-			errorMessage := fmt.Sprintf("Origin: %s nor Referer: %s are authorized", origin, referer)
+			refererUrl, _ := url.Parse(referer)
+			errorMessage := fmt.Sprintf("Origin: %s nor Referer: %s are authorized", origin, refererUrl.Hostname())
 			http.Error(w, errorMessage, 400)
 			return
 		}

@@ -243,18 +243,25 @@ func welcomePageHandler() http.HandlerFunc {
 			http.Error(w, err.Error(), 500)
 			return
 		}
-		
-		if !verifyUserAccess(r.Header.Get("Cookie"), id) {
+
+		accessToken := q["access_token"][0]		
+		if !verifyUserAccess(accessToken, id) {
 			http.Error(w, "Acccess token unauthorized for user", 401)
 			return
 		}
 
-		au, _ := activeUsers[r.Header.Get("Cookie")]
+		au, _ := activeUsers[accessToken]
+
+		w.Header().Set("Set-Cookie", au.AccessToken)
+		
 		t.Execute(w, &Welcome{
 			Name: au.Name,
 			Id: au.Id,
+			AccessToken: au.AccessToken,
 			Apps: apps.List,
 		})
+
+		
 		return
 	})
 }
@@ -283,6 +290,9 @@ func loginCredentialsHandler() http.HandlerFunc {
 		}
 
 		au := activateUser(&u)
+
+		w.Header().Set("Set-Cookie", au.AccessToken)
+		
 		json.NewEncoder(w).Encode(&au)
 	})
 }
@@ -631,8 +641,9 @@ func postDefense(h http.HandlerFunc) http.Handler {
 
 func main() {
 	http.Handle("/", http.FileServer(http.Dir("./static")))
-	
-	http.Handle("/welcome", cookieMiddleware(welcomePageHandler()))
+
+	//Review Cookie Security, may have messed this up...
+	http.Handle("/welcome", welcomePageHandler())
 	
 	http.Handle("/login/credentials", originMiddleware(postMiddleware(loginCredentialsHandler())))
 	

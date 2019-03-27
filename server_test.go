@@ -83,6 +83,11 @@ func loginCreds(t *testing.T) *ActiveUser {
 	checkStatusCode(t, resp, "Login credentials has error")
 	checkBody(t, resp)
 
+	// Check Set-Cookie header
+	if resp.Header.Get("Set-Cookie") == "" {
+		t.Fatal("Set-Cookie header not set with login response")
+	}
+
 	var au ActiveUser
 	err = json.NewDecoder(resp.Body).Decode(&au); if err != nil {
 		t.Fatal("Decoding active user failed", err.Error())

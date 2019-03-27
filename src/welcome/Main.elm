@@ -31,9 +31,11 @@ type alias Model =
   { key : Nav.Key
   , url : Url.Url
   , otherUsernameText : String
-  , otherPasswordText : String
+  , newUserUsernameText : String
+  , newUserPasswordText : String
   , changePasswordText : String
   , changeUsernameText : String
+  , oldPasswordText : String
   , newPassword : String
   , adminChecked : Bool
   , id : Int
@@ -56,9 +58,11 @@ init flags url key =
   ( { key = key
     , url = url
     , otherUsernameText = ""
-    , otherPasswordText = ""
+    , newUserUsernameText = ""
+    , newUserPasswordText = ""
     , changePasswordText = ""
     , changeUsernameText = ""
+    , oldPasswordText = ""
     , newPassword = ""
     , adminChecked = False
     , id = flags.id
@@ -82,7 +86,7 @@ updateUsernameEncoder : Model -> Encode.Value
 updateUsernameEncoder model =
     Encode.object
         [ ("username", Encode.string model.changeUsernameText)
-        , ("id", Encode.int model.id)
+        , ("id", Encode.string (String.fromInt model.id))
         , ("access_token", Encode.string model.accessToken)
         ]
 
@@ -99,8 +103,9 @@ postChangePassword model =
 updatePasswordEncoder : Model -> Encode.Value
 updatePasswordEncoder model =
     Encode.object
-        [ ("password", Encode.string model.changePasswordText)
-        , ("id", Encode.int model.id)
+        [ ("new_password", Encode.string model.changePasswordText)
+        , ("old_password", Encode.string model.oldPasswordText)
+        , ("id", Encode.string (String.fromInt model.id))
         , ("access_token", Encode.string model.accessToken)
         ]
         
@@ -124,9 +129,9 @@ newUserEncoder model =
                 "false"
     in
         Encode.object
-            [ ("username", Encode.string model.otherUsernameText)
-            , ("password", Encode.string model.otherPasswordText)
-            , ("id", Encode.int model.id)
+            [ ("username", Encode.string model.newUserUsernameText)
+            , ("password", Encode.string model.newUserPasswordText)
+            , ("id", Encode.string (String.fromInt model.id))
             , ("admin", Encode.string admin)
             ]
 
@@ -182,7 +187,7 @@ adminActionEncoder model =
     Encode.object
         [ ("username", Encode.string model.otherUsernameText)
         , ("access_token", Encode.string model.accessToken)
-        , ("id", Encode.int model.id)
+        , ("id", Encode.string (String.fromInt model.id))
         ]
         
         
@@ -193,7 +198,8 @@ type Msg
   = LinkClicked Browser.UrlRequest
   | UrlChanged Url.Url
   | OtherUsernameInput String
-  | OtherPasswordInput String
+  | NewUserUsernameInput String
+  | NewUserPasswordInput String
   | ToggleAdmin
   | NewUser
   | AdminNewPassword
@@ -202,13 +208,13 @@ type Msg
   | DeleteUser
   | ChangeUsernameInput String
   | ChangePasswordInput String
+  | OldPasswordInput String
   | SubmitChangeUsername
   | SubmitChangePassword
   | PostChangeUsername (Result Http.Error ())
   | PostChangePassword (Result Http.Error ())
   | PostAdminAction (Result Http.Error ())
   | PostNewPassword (Result Http.Error NewPasswordBody)
-
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -228,6 +234,9 @@ update msg model =
     ChangeUsernameInput username ->
         ( { model | changeUsernameText = username }, Cmd.none )
 
+    OldPasswordInput password ->
+        ( { model | oldPasswordText = password }, Cmd.none )
+
     ChangePasswordInput password ->
         ( { model | changePasswordText = password }, Cmd.none )
 
@@ -240,8 +249,11 @@ update msg model =
     OtherUsernameInput username ->
         ( { model | otherUsernameText = username }, Cmd.none )
 
-    OtherPasswordInput password ->
-        ( { model | otherPasswordText = password }, Cmd.none )
+    NewUserUsernameInput username ->
+        ( { model | newUserUsernameText = username }, Cmd.none )            
+
+    NewUserPasswordInput password ->
+        ( { model | newUserPasswordText = password }, Cmd.none )
 
     NewUser ->
         ( model, postNewUser model )
@@ -296,7 +308,7 @@ view model =
   in
       { title = "Portal"
       , body = [ text route
-               , viewRouter model route
+               , viewRouter model route                    
                ]
       }
 
@@ -357,7 +369,8 @@ changeUsernameView model =
 changePasswordView : Model -> Html Msg
 changePasswordView model =
     div []
-        [ input [ onInput ChangePasswordInput, placeholder "New Password", value model.changePasswordText ] []
+        [ input [ onInput OldPasswordInput, placeholder "Old Password", value model.oldPasswordText ] []
+        , input [ onInput ChangePasswordInput, placeholder "New Password", value model.changePasswordText ] []
         , button [ onClick SubmitChangePassword ] [ text "Submit" ]
         ]
 
@@ -391,8 +404,8 @@ newUserView model =
         div []
             [ text "Register new user here:"
             , div []
-                [ div [] [ input [ onInput OtherUsernameInput, placeholder "Other username", value model.otherUsernameText ] [] ]
-                , div [] [ input [ onInput OtherPasswordInput, placeholder "New user's password", value model.otherPasswordText ] [] ]
+                [ div [] [ input [ onInput NewUserUsernameInput, placeholder "Other username", value model.newUserUsernameText ] [] ]
+                , div [] [ input [ onInput NewUserPasswordInput, placeholder "New user's password", value model.newUserPasswordText ] [] ]
                 , div []
                     [ text "Admin Y/N: "
                     , input [ type_ "checkbox", checked model.adminChecked, onClick ToggleAdmin ] []
