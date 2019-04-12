@@ -355,13 +355,14 @@ appView name =
 settingsView : Model -> Html Msg
 settingsView model =
     if model.admin then
-        div []
+        div [ class "setting" ]
             [ changeUsernameView model
             , changePasswordView model
             , adminSettingsView model
+            , newUserView model                
             ]
     else
-        div []
+        div [ class "setting" ]
             [ changeUsernameView model
             , changePasswordView model
             ]
@@ -369,64 +370,65 @@ settingsView model =
         
 changeUsernameView : Model -> Html Msg
 changeUsernameView model =
-    div []
-        [ div [] [ text "Change your username:" ]
-        , input [ onInput ChangeUsernameInput, placeholder "New Username", value model.changeUsernameText ] []
+    div [ class "setting" ]
+        [ div [ class "setting" ]
+              [ text "Change Username: "
+              , input [ onInput ChangeUsernameInput, placeholder "My New Username", value model.changeUsernameText ] []
+              ]
         , button [ onClick SubmitChangeUsername ] [ text "Submit" ]
         ]
 
         
 changePasswordView : Model -> Html Msg
 changePasswordView model =
-    div []
-        [ div [] [ text "Change your password:" ]
-        , input [ onInput OldPasswordInput, placeholder "Old Password", value model.oldPasswordText ] []
-        , input [ onInput ChangePasswordInput, placeholder "New Password", value model.changePasswordText ] []
-        , button [ onClick SubmitChangePassword ] [ text "Submit" ]
+    div [ class "setting" ]
+        [ div [ class "setting" ] [ text "Change Your password:" ]
+        , div [ class "setting" ]
+            [ div [ class "setting" ] [ input [ onInput OldPasswordInput, placeholder "Old Password", value model.oldPasswordText ] [] ]
+            , div [ class "setting" ] [ input [ onInput ChangePasswordInput, placeholder "New Password", value model.changePasswordText ] [] ]
+            , button [ onClick SubmitChangePassword ] [ text "Submit" ]
+            ]
         ]
 
 
 adminSettingsView : Model -> Html Msg
 adminSettingsView model =
-    div []
-        [ div [] [ text "Update another user's settings or status:" ]
+    div [ class "setting" ]
+        [ div [] [ text "Update other user's settings or status:" ]
         , div []
-            [ div []
-                  [ div [] [ text "Username:" ]
-                  , input [ onInput OtherUsernameInput, placeholder "Other username", value model.otherUsernameText ] []
+            [ div [ class "setting" ]
+                  [ text "Username: "
+                  , input [ onInput OtherUsernameInput, placeholder "Other Username", value model.otherUsernameText ] []
                   ]
-            , div []
-                [ div [] [ text "Password:" ]
+            , div [ class "setting" ]
+                [ text "New Password: "
                 , button [ onClick AdminNewPassword ] [ text "New Password" ]
                 , text model.newPassword
                 ]
-            , div []
-                [ div [] [ text "Admin" ]
-                , div [] [ text "Modify another user's admin status:" ]
-                , button [ onClick MakeAdmin ] [ text "Make Admin" ]
-                , button [ onClick RevokeAdmin ] [ text "Revoke Admin" ]
+            , div [ class "setting" ]
+                [ text "Admin: "
+                , button [ onClick MakeAdmin ] [ text "Yes" ]
+                , button [ onClick RevokeAdmin ] [ text "No" ]
                 ]
-            , div []
-                [ div [] [ text "Delete:" ]
+            , div [ class "setting" ]
+                [ text "Delete: "
                 , button [ onClick DeleteUser ] [ text "Delete User" ]
                 , text "WARNING: This will delete users access to Portal."
                 ]
-            , newUserView model
             ]
         ]
 
 
 newUserView : Model -> Html Msg
 newUserView model =
-        div []
-            [ div [] [ text "Register new user here:" ]
-            , div []
-                [ div [] [ input [ onInput NewUserUsernameInput, placeholder "Other username", value model.newUserUsernameText ] [] ]
-                , div [] [ input [ onInput NewUserPasswordInput, placeholder "New user's password", value model.newUserPasswordText ] [] ]
-                , div []
-                    [ text "Admin Y/N: "
-                    , input [ type_ "checkbox", checked model.adminChecked, onClick ToggleAdmin ] []
-                    ]
-                , button [ onClick NewUser ] [ text "New User" ]
-                ]
+    div [ class "setting" ]
+        [ text "Register New User: "
+        , input [ onInput NewUserUsernameInput, placeholder "Other Username", value model.newUserUsernameText ] []
+        , input [ onInput NewUserPasswordInput, placeholder "New User's Password", value model.newUserPasswordText ] []
+        , div [ class "setting" ]
+            [ text "Admin Yes / No: "
+            , input [ type_ "checkbox", checked model.adminChecked, onClick ToggleAdmin ] []
             ]
+        , div [ class "setting" ] [ button [ onClick NewUser ] [ text "Register" ] ]
+        ]
+            
