@@ -27,6 +27,7 @@ func postRequest(url string, data []byte) (*http.Response, error) {
 	client := &http.Client{}
 	req, _ := http.NewRequest("POST", url, bytes.NewBuffer(data))
 	req.Header.Set("Origin", config.Domain)
+	req.Header.Set("Referer", fmt.Sprintf("http://localhost%s", config.Port))
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := client.Do(req);
 
@@ -39,6 +40,7 @@ func postRequestToken(url string, data []byte, token string) (*http.Response, er
 		return nil, err
 	}
 	req.Header.Set("Origin", config.Domain)
+	req.Header.Set("Referer", fmt.Sprintf("http://localhost%s", config.Port))	
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Cookie", token)
 	resp, err := client.Do(req);

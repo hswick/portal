@@ -31,8 +31,10 @@ func postMiddleware(next http.Handler) http.Handler {
 
 //TODO: Review this origin policy, may still be insecure
 //Probably need to check localhost
-func badOrigin(origin string, referer string) bool {	
-	return origin != config.Domain && referer != config.Domain && origin != "localhost" && referer != "localhost"
+func badOrigin(origin string, referer string) bool {
+	originUrl, _ := url.Parse(origin)
+	refererUrl, _ := url.Parse(referer)
+	return originUrl.Hostname() != config.Domain && refererUrl.Hostname() != config.Domain && originUrl.Hostname() != "localhost" && refererUrl.Hostname() != "localhost"
 }
 
 func originMiddleware(next http.Handler) http.Handler {

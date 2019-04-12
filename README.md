@@ -6,7 +6,10 @@ A simple login application meant to be the front facing portal for internal orga
 
 Install a Go version >= 1.8
 
-Install elm
+Install elm + uglifyjs
+```bash
+npm install -g elm uglify-js
+```
 
 Install postgres
 
@@ -35,6 +38,19 @@ dbname="portal"
 ```
 
 # Usage
+```bash
+# Only need to do this once
+./scripts/compile_login.sh
+./scripts/compile_welcome.sh
+
+# Run development environment
+./scripts/dev.sh
+
+# Clean database
+./scripts/clean.sh
 ```
-go run server.go
+
+# Test
+```bash
+./scripts/test.sh
 ```
