@@ -221,6 +221,7 @@ type Welcome struct{
 	Id int64
 	AccessToken string
 	Apps []string
+	Admin bool
 }
 
 func welcomePageHandler() http.HandlerFunc {
@@ -228,6 +229,8 @@ func welcomePageHandler() http.HandlerFunc {
 	t, err := template.ParseFiles("./static/welcome.html"); if err != nil {
 		log.Fatal(err.Error())
 	}
+
+	stmt := prepareQuery("sql/check_admin.sql")
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		
@@ -252,6 +255,12 @@ func welcomePageHandler() http.HandlerFunc {
 
 		au, _ := activeUsers[accessToken]
 
+		var admin bool
+		err = stmt.QueryRow(au.Id).Scan(&admin); if err != nil {
+			http.Error(w, err.Error(), 401)
+			return
+		}		
+
 		w.Header().Set("Set-Cookie", au.AccessToken)
 		
 		t.Execute(w, &Welcome{
@@ -259,6 +268,7 @@ func welcomePageHandler() http.HandlerFunc {
 			Id: au.Id,
 			AccessToken: au.AccessToken,
 			Apps: apps.List,
+			Admin: admin,
 		})
 
 		

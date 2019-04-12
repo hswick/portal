@@ -42,12 +42,14 @@ type alias Model =
   , accessToken : String
   , name : String
   , apps : List String
+  , admin : Bool
   }
 
 
 type alias Flags =
     { name : String
     , id : Int
+    , admin : Bool
     , accessToken : String
     , apps : List String
     }
@@ -69,6 +71,7 @@ init flags url key =
     , accessToken = flags.accessToken
     , name = flags.name
     , apps = flags.apps
+    , admin = flags.admin
     }
   , Cmd.none )
 
@@ -81,7 +84,7 @@ postChangeUsername model =
         , expect = Http.expectWhatever PostChangeUsername
         }
 
-        
+
 updateUsernameEncoder : Model -> Encode.Value
 updateUsernameEncoder model =
     Encode.object
@@ -351,17 +354,24 @@ appView name =
         
 settingsView : Model -> Html Msg
 settingsView model =
-    div []
-        [ changeUsernameView model
-        , changePasswordView model
-        , adminSettingsView model
-        ]
+    if model.admin then
+        div []
+            [ changeUsernameView model
+            , changePasswordView model
+            , adminSettingsView model
+            ]
+    else
+        div []
+            [ changeUsernameView model
+            , changePasswordView model
+            ]
 
         
 changeUsernameView : Model -> Html Msg
 changeUsernameView model =
     div []
-        [ input [ onInput ChangeUsernameInput, placeholder "New Username", value model.changeUsernameText ] []
+        [ div [] [ text "Change your username:" ]
+        , input [ onInput ChangeUsernameInput, placeholder "New Username", value model.changeUsernameText ] []
         , button [ onClick SubmitChangeUsername ] [ text "Submit" ]
         ]
 
@@ -369,7 +379,8 @@ changeUsernameView model =
 changePasswordView : Model -> Html Msg
 changePasswordView model =
     div []
-        [ input [ onInput OldPasswordInput, placeholder "Old Password", value model.oldPasswordText ] []
+        [ div [] [ text "Change your password:" ]
+        , input [ onInput OldPasswordInput, placeholder "Old Password", value model.oldPasswordText ] []
         , input [ onInput ChangePasswordInput, placeholder "New Password", value model.changePasswordText ] []
         , button [ onClick SubmitChangePassword ] [ text "Submit" ]
         ]
@@ -378,20 +389,26 @@ changePasswordView model =
 adminSettingsView : Model -> Html Msg
 adminSettingsView model =
     div []
-        [ text "Update another user's settings or status:"
+        [ div [] [ text "Update another user's settings or status:" ]
         , div []
-            [ input [ onInput OtherUsernameInput, placeholder "Other username", value model.otherUsernameText ] []
+            [ div []
+                  [ div [] [ text "Username:" ]
+                  , input [ onInput OtherUsernameInput, placeholder "Other username", value model.otherUsernameText ] []
+                  ]
             , div []
-                [ button [ onClick AdminNewPassword ] [ text "New Password" ]
+                [ div [] [ text "Password:" ]
+                , button [ onClick AdminNewPassword ] [ text "New Password" ]
                 , text model.newPassword
                 ]
             , div []
-                [ text "Modify another user's admin status:"
+                [ div [] [ text "Admin" ]
+                , div [] [ text "Modify another user's admin status:" ]
                 , button [ onClick MakeAdmin ] [ text "Make Admin" ]
                 , button [ onClick RevokeAdmin ] [ text "Revoke Admin" ]
                 ]
             , div []
-                [ button [ onClick DeleteUser ] [ text "Delete User" ]
+                [ div [] [ text "Delete:" ]
+                , button [ onClick DeleteUser ] [ text "Delete User" ]
                 , text "WARNING: This will delete users access to Portal."
                 ]
             , newUserView model
@@ -402,7 +419,7 @@ adminSettingsView model =
 newUserView : Model -> Html Msg
 newUserView model =
         div []
-            [ text "Register new user here:"
+            [ div [] [ text "Register new user here:" ]
             , div []
                 [ div [] [ input [ onInput NewUserUsernameInput, placeholder "Other username", value model.newUserUsernameText ] [] ]
                 , div [] [ input [ onInput NewUserPasswordInput, placeholder "New user's password", value model.newUserPasswordText ] [] ]
