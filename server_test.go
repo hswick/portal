@@ -281,10 +281,11 @@ func adminDeleteUser(t *testing.T, admin *ActiveUser, username string) {
 }
 
 func l(s string) {
-	fmt.Println(s)
+     fmt.Println(s)
 }
 
 func TestIntegrationApi(t *testing.T) {
+     
 
 	l("Login")
 	au := loginCreds(t)
